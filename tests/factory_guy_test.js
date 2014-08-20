@@ -87,6 +87,38 @@ test("Referring to other attributes in attribute definition", function() {
   deepEqual(json, {id: 2, name: 'Bob', type: 'level undefined'}, 'still works when attribute does not exists');
 });
 
+test("Specifying after-build events", function() {
+  delete FactoryGuy.modelDefinitions['person']
+
+  FactoryGuy.define('person', {
+    events: {
+      default: {
+        'after-build': function (fixture) {
+          fixture.afterBuildCalled = true
+        }
+      },
+      funny_person: {
+        'after-build': function (fixture) {
+          fixture.funnyAfterBuildCalled = true
+        }
+      }
+    },
+    default: {
+      name: 'Bob',
+      type: 'normal'
+    },
+    funny_person: {
+    }
+  });
+
+  var json = FactoryGuy.build('person')
+  equal(json.afterBuildCalled, true, "default after build called");
+  ok(!json.funnyAfterBuildCalled, "unspecified trait after build not called");
+
+  json = FactoryGuy.build('funny_person')
+  equal(json.afterBuildCalled, true, "default after build called");
+  equal(json.funnyAfterBuildCalled, true, "specified trait after build called");
+});
 
 test("Using belongsTo associations in attribute definition", function() {
   var json = FactoryGuy.build('project_with_user');

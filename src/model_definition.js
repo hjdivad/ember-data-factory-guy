@@ -8,6 +8,7 @@
 ModelDefinition = function (model, config) {
   var sequences = {};
   var traits = {};
+  var eventsByTrait = {};
   var defaultAttributes = {};
   var namedModels = {};
   var modelId = 1;
@@ -49,6 +50,17 @@ ModelDefinition = function (model, config) {
     return sequence.next();
   }
 
+  var runEvent = function(eventName, fixture, traitArgs) {
+    ['default'].concat(traitArgs).forEach(function (trait) {
+      var traitEvents = eventsByTrait[trait] || {}
+      var handler = traitEvents[eventName]
+
+      if (handler) {
+        handler.call(null, fixture)
+      }
+    })
+  }
+
   /**
    Build a fixture by name
 
@@ -80,6 +92,7 @@ ModelDefinition = function (model, config) {
     if (!fixture.id) {
       fixture.id = modelId++;
     }
+    runEvent('after-build', fixture, [name].concat(traitArgs))
     return fixture;
   }
 
@@ -136,12 +149,41 @@ ModelDefinition = function (model, config) {
     sequences = object;
   }
 
+  var parseEventHandlers = function (object) {
+    if (!object) {
+      return
+    }
+
+    for (var trait in object) {
+      if (!object.hasOwnProperty(trait)) { continue; }
+
+      eventsByTrait[trait] = parseTraitEventHandlers(object[trait])
+    }
+  }
+
+  var parseTraitEventHandlers = function (object) {
+    for (var eventName in object) {
+      if (!object.hasOwnProperty(eventName)) { continue; }
+
+      var eventHandler = object[eventName]
+
+      if (Ember.typeOf(eventHandler) != 'function') {
+        throw new Error('Problem with [' + eventName + '] event handler. Handlers must be functions')
+      }
+    }
+
+    return object
+  }
+
   var parseConfig = function (config) {
     parseSequences(config.sequences);
     delete config.sequences;
 
     parseTraits(config.traits);
     delete config.traits;
+
+    parseEventHandlers(config.events);
+    delete config.events;
 
     parseDefault(config.default);
     delete config.default;
